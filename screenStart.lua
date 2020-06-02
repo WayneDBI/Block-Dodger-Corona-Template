@@ -1,12 +1,6 @@
-
 ------------------------------------------------------------------------------------------------------------------------------------
 -- screenStart.lua
 ------------------------------------------------------------------------------------------------------------------------------------
-
-
----------------------------------------------------------------------------------
--- sceneReset.lua
----------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
 -- Load external modules as required.
@@ -14,53 +8,55 @@
 ---------------------------------------------------------------
 -- Require all of the external modules for this level
 ---------------------------------------------------------------
-local ui 				= require("ui")
-local widget 			= require("widget")
-local myGlobalData 		= require("globalData")
-local loadsave 			= require("loadsave")
-local composer      	= require( "composer" )
-local scene         	= composer.newScene()
+local ui                 = require("ui")
+local widget             = require("widget")
+local myGlobalData       = require("globalData")
+local loadsave           = require("loadsave")
+local composer           = require( "composer" )
+local scene              = composer.newScene()
 
 ---------------------------------------------------------------
 -- Define our SCENE variables and sprite object variables
 ---------------------------------------------------------------
-local changeTheScene	= false
-local buttonGroup 		= display.newGroup()
-local gameAreaGroup 	= display.newGroup()
+local changeTheScene     = false
+local buttonGroup        = display.newGroup()
+local gameAreaGroup      = display.newGroup()
 
-local wallThickness = 7
-local distanceFromEdge = 10
-local maxSquareSize = myGlobalData._w - distanceFromEdge
-local innerWallDistance = 40
+local wallThickness      = 7
+local distanceFromEdge   = 10
+local maxSquareSize      = myGlobalData._w - distanceFromEdge
+local innerWallDistance  = 40
 local maxInnerSquareSize = maxSquareSize - innerWallDistance
+local inset              = 70
 
-local enemySize = 30
-local enemyMoveSpeed = 250
-local enemySpawnTable = {}
+local enemySize          = 30
+local enemyMoveSpeed     = 250
+local enemySpawnTable    = {}
 
-local playerSize = 30
+local playerSize         = 30
 local player
 local scoreDisplay
-local score = 0
+local score              = 0
 local scoreTimertimer
 
-local gameOver = false
+local timeLimit          = 3
+local debounce
+
+local gameOver           = false
 
 local gameOverText
 local restartText
 
 -- create table
-local stars = {}
+local stars              = {}
  
 -- initial vars
-local stars_total = 60
-local stars_field1= 200
-local stars_field2= 200
-local stars_field3= 600
-local star_radius_min  = 1
-local star_radius_max  = 2
-
-
+local stars_total        = 60
+local stars_field1       = 200
+local stars_field2       = 200
+local stars_field3       = 600
+local star_radius_min    = 1
+local star_radius_max    = 2
 
 local checkVelocityTimer
 math.randomseed( os.time() )
@@ -94,7 +90,6 @@ function scene:create( event )
     -- Initialize the scene here
     -- Example: add display objects to "sceneGroup", add touch listeners, etc.
 
-
     display.setDefault( "anchorX", 0.5 )
 	display.setDefault( "anchorY", 0.5 )
 	
@@ -103,12 +98,6 @@ function scene:create( event )
 	local WallFilterData = { categoryBits = 1, maskBits = 6 }
 	local PlayerFilterData = { categoryBits = 2, maskBits = 5 }
 	local EnemyFilterData = { categoryBits = 4, maskBits = 3 }
-
-	--local WallFilterData = { categoryBits = 1, maskBits = 2 }
-	--local PlayerFilterData = { categoryBits = 2, maskBits = 5 }
-	--local EnemyFilterData = { categoryBits = 4, maskBits = 10 }
-	--local WallInnerFilterData = { categoryBits = 8, maskBits = 4 }
-
 
 	-----------------------------------------------------------------
 	-- Add Score
@@ -119,14 +108,6 @@ function scene:create( event )
 	scoreDisplay.y = 40
 	scoreDisplay.alpha = 1
 	sceneGroup:insert( scoreDisplay )
-		
-	-----------------------------------------------------------------
-	-- Add DBA Logo
-	-----------------------------------------------------------------
-    --local Logo = display.newImageRect(sceneGroup, myGlobalData.imagePath.."dbaLogo.png", 138,71);
-	--Logo.x = myGlobalData._w/2
-	--Logo.y = myGlobalData._h - 40
-	--sceneGroup:insert( Logo )
 	
 	-----------------------------------------------------------------
 	-- Add the Walls
@@ -136,11 +117,9 @@ function scene:create( event )
 		local wall = display.newRect( 0,0, sizeX, sizeY )
 		wall.x = x; wall.y = y
 		if(Colour=="Blue")then
-			--local wallMaterial = { density=100.0, friction=0.0, bounce=1, filter=WallInnerFilterData }
 			wall:setFillColor(0.15,0.26,0.62)--blue
 			wall.myName = "innerWall"
 		else
-			--local wallMaterial = { density=100.0, friction=0.0, bounce=1, filter=WallFilterData }
 			wall:setFillColor(0.7,0.2,0.1)--red
 			wall.myName = "outerWall"
 		end		
@@ -148,23 +127,18 @@ function scene:create( event )
 		gameAreaGroup:insert( wall )
 		
 	end
+
 	--add OUTER Red Walls
-	local inset = 70
 	addwall(distanceFromEdge, myGlobalData._h/2, wallThickness, myGlobalData._h - (inset * 2), "Red"  ) --Left
 	addwall(maxSquareSize, myGlobalData._h/2, wallThickness, myGlobalData._h - (inset * 2), "Red"  ) --Right
 	addwall(myGlobalData._w/2, myGlobalData._h-inset, maxSquareSize-3, wallThickness, "Red"  ) --Bottom
 	addwall(myGlobalData._w/2, inset, maxSquareSize-3, wallThickness, "Red"  ) --Top
-	--addwall(myGlobalData._w/2, myGlobalData._h/2+(maxSquareSize/2), maxSquareSize-3, wallThickness, "Red"  ) --Bottom
-	--addwall(myGlobalData._w/2, myGlobalData._h/2-(maxSquareSize/2), maxSquareSize-3, wallThickness, "Red"  ) --Top
 
 	--add INNER Blue Walls
 	addwall(innerWallDistance-distanceFromEdge, myGlobalData._h/2, wallThickness, myGlobalData._h - (inset * 2)-40, "Blue"  ) --Left
 	addwall(maxSquareSize-(innerWallDistance/2), myGlobalData._h/2, wallThickness, myGlobalData._h - (inset * 2)-40, "Blue"  ) --Right
 	addwall(myGlobalData._w/2, myGlobalData._h-inset-20, maxInnerSquareSize-3, wallThickness, "Blue"  ) --Bottom
 	addwall(myGlobalData._w/2, inset+20, maxInnerSquareSize-3, wallThickness, "Blue"  ) --Top
-	--addwall(myGlobalData._w/2, myGlobalData._h/2+(maxInnerSquareSize/2), maxInnerSquareSize-3, wallThickness, "Blue"  ) --Bottom
-	--addwall(myGlobalData._w/2, myGlobalData._h/2-(maxInnerSquareSize/2), maxInnerSquareSize-3, wallThickness, "Blue"  ) --Top
-
 
 	-----------------------------------------------------------------
 	--Add the player to the screen
@@ -185,7 +159,6 @@ function scene:create( event )
 	player.isSensor = true
 	gameAreaGroup:insert(player)
 	player:addEventListener( "touch", onTouch )
-
 
 	-----------------------------------------------------------------
 	--Add 4 x enemies to the screen
@@ -268,15 +241,15 @@ function scene:create( event )
 	local function trackTimeUpdate()   -- RunTime enterFrame event handler
 		score = score + 1
 	end
-
 	
-	local timeLimit = 3
+	
 	timeLeft = display.newText(timeLimit, 160, 20, "HelveticaNeue-CondensedBlack", 172)
 	timeLeft.alpha = 0.8
 	timeLeft.x = myGlobalData._w/2
 	timeLeft.y = myGlobalData._h/2
 	timeLeft:setTextColor(1,1,1)
 	sceneGroup:insert( timeLeft )
+	timeLeft.isVisible = true
 
 	local function timerDown()
 	   timeLimit = timeLimit-1
@@ -291,7 +264,7 @@ function scene:create( event )
 	     end
 	  end
 
-	timer.performWithDelay(1000,timerDown,timeLimit)
+	debounce = timer.performWithDelay(1000,timerDown,timeLimit)
 
 	
 	-- create/draw objects
@@ -320,34 +293,15 @@ function scene:show( event )
     if ( phase == "will" ) then
         -- Called when the scene is still off screen (but is about to come on screen)
 
-
-
     elseif ( phase == "did" ) then
 
         ---------------------------------------------------------------------------------
         -- Animate all the scene elements into position
         ---------------------------------------------------------------------------------
 
-
         -- Called when the scene is now on screen
         -- Insert code here to make the scene come alive
         -- Example: start timers, begin animation, play audio, etc.
-
---[[
-    	local previousScene = composer.getPrevious()
-		print(previousScene)
-			
-		if (previousScene ~= nil ) then
-			local previousInfo = "Previous Scene: "..previousScene
-			print(previousInfo)
-
-			--composer.purgeScene( previousScene )
-			composer.removeScene( previousScene )
-		end
-		
-		--composer.purgeScene( "screenReset" )
-		composer.removeScene( "screenReset" )
---]]
 
     end
 end
@@ -381,7 +335,6 @@ end
 function scene:destroy( event )
 
     local sceneGroup = self.view
-
 
     --Runtime:removeEventListener( "enterFrame", handleEnterFrame)
 
@@ -510,6 +463,15 @@ local function onGlobalCollision( event )
 
 	if ( event.phase == "began" and gameOver==false) then
 	
+		if (player.x < distanceFromEdge) or (player.x > maxSquareSize) 
+		or (player.y < inset) or (player.y > myGlobalData._h-inset) 
+		
+		then 
+	
+			gameOver = true
+		
+		end
+		
 		if (event.object1.myName == "innerWall" and event.object2.myName == "Enemy" ) then
 			checkVelocityTimer = timer.performWithDelay(0, resetLinearVelocity(event.object2))
 		end
@@ -553,7 +515,6 @@ function updateTick(event)
 
 		--Move the player
 		for i = 1, #enemySpawnTable do
-			--print(enemySpawnTable[i].index)
 			enemySpawnTable[i]:setLinearVelocity(0,0)
 
 		end
@@ -564,11 +525,17 @@ function updateTick(event)
 			scoreTimertimer = nil
 		end
 		
+		if(debounce) then
+			timer.cancel(debounce)
+			debounce = nil
+		end
+		
+		timeLeft.isVisible = false
+		
 		--Show the Game Over & restart message
 		gameOverText.y = myGlobalData._h/2
 		restartText.y = myGlobalData._h/2+40
 
-		
 		
 	--Cancel events	
 	Runtime:removeEventListener( "enterFrame", updateTick )
@@ -590,8 +557,6 @@ function updateTick(event)
 
 end
 
-
-
 ---------------------------------------------------------------------------------
 -- Listener setup
 ---------------------------------------------------------------------------------
@@ -611,5 +576,3 @@ Runtime:addEventListener("enterFrame",udpdatestars)
 -- Return the Scene
 ---------------------------------------------------------------------------------
 return scene
-
-
